@@ -1,6 +1,6 @@
 // https://docs.metamask.io/guide/ethereum-provider.html#using-the-provider
 
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import SimpleStorage_abi from './contracts/SimpleStorage_abi.json'
 // Import everything
 import { ethers } from "ethers";
@@ -20,6 +20,12 @@ const SimpleStorage = ({ setLoading }) => {
 	const [provider, setProvider] = useState(null);
 	const [signer, setSigner] = useState(null);
 	const [contract, setContract] = useState(null);
+
+
+	useEffect(() => {
+		connectWalletHandler();
+	  }, []);
+
 
 	const connectWalletHandler = () => {
 		if (window.ethereum && window.ethereum.isMetaMask) {
@@ -58,20 +64,35 @@ const SimpleStorage = ({ setLoading }) => {
 	window.ethereum.on('chainChanged', chainChangedHandler);
 
 	const updateEthers = async () => {
-		let tempProvider = new ethers.BrowserProvider(window.ethereum)
-		setProvider(tempProvider);
+		try {
+			let tempProvider = new ethers.BrowserProvider(window.ethereum)
+			setProvider(tempProvider);
 
-		let tempSigner = await tempProvider.getSigner();
-		setSigner(tempSigner);
+			let tempSigner = await tempProvider.getSigner();
+			setSigner(tempSigner);
 
-		let tempContract = new ethers.Contract(contractAddress, SimpleStorage_abi, tempSigner);
-		setContract(tempContract);	
+			let tempContract = new ethers.Contract(contractAddress, SimpleStorage_abi, tempSigner);
+			setContract(tempContract);
+		} catch (error) {
+			setErrorMessage(error.message);
+		}	
 	}
 
-	const setHandler = (event) => {
+	const setHandler = async (event) => {
 		event.preventDefault();
 		console.log('sending ' + event.target.setText.value + ' to the contract');
-		contract.set(event.target.setText.value);
+		try {
+			const tx = await contract.set(event.target.setText.value);
+			await tx.wait();
+			console.log('Transaction successful');
+		} catch (error) {
+			if (error.message.indexOf("User denied") !== -1) {
+				setErrorMessage('User denied transaction signature');
+			} else {
+				setErrorMessage(error.message);
+			}
+			
+		}
 	}
 
 	const getCurrentVal = async () => {
