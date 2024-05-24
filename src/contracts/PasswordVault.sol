@@ -28,7 +28,9 @@ contract PasswordVault {
         emit LoginAdded(msg.sender, _username, _url);
     }
 
-    function getVault() public view returns (Login[] memory) {
-        return vaults[msg.sender].logins;
+    function getVaults() public view returns (Vault[] memory) {
+        Vault[] memory userVault = new Vault[](1);
+        userVault[0] = vaults[msg.sender];
+        return userVault;
     }
 }

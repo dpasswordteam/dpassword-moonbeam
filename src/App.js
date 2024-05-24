@@ -23,7 +23,7 @@ function App() {
         </header>
       ) : (
         <>
-          <SimpleStorage setLoading={setLoading} />
+          {/*<SimpleStorage setLoading={setLoading} />*/}
           <PasswordVault setLoading={setLoading} />
         </>
       )}
