@@ -1,6 +1,7 @@
 import './App.css';
 import logo from './logo.svg';
 import SimpleStorage from './SimpleStorage';
+import PasswordVault from './PasswordVault';
 import React, { useState, useEffect } from 'react';
 
 function App() {
@@ -21,7 +22,10 @@ function App() {
           <img src={logo} className="App-logo" alt="logo" />
         </header>
       ) : (
-        <SimpleStorage setLoading={setLoading}/>
+        <>
+          <SimpleStorage setLoading={setLoading} />
+          <PasswordVault setLoading={setLoading} />
+        </>
       )}
     </div>
   );
