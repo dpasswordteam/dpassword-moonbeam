@@ -9,7 +9,7 @@ const SimpleStorage = ({ setLoading }) => {
     
 
 	// deploy simple storage contract and paste deployed contract address here. This value is local ganache chain
-	let contractAddress = '0x5b1869D9A4C187F2EAa108f3062412ecf0526b24';
+	let contractAddress = '0x5b1869D9A4C187sF2EAa108f3062412ecf0526b24';
 
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [defaultAccount, setDefaultAccount] = useState(null);
