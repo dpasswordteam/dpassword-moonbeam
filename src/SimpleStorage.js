@@ -5,7 +5,7 @@ import SimpleStorage_abi from './contracts/SimpleStorage_abi.json'
 // Import everything
 import { ethers } from "ethers";
 
-const SimpleStorage = () => {
+const SimpleStorage = ({ setLoading }) => {
     
 
 	// deploy simple storage contract and paste deployed contract address here. This value is local ganache chain
