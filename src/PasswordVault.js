@@ -1,9 +1,11 @@
 // https://docs.metamask.io/guide/ethereum-provider.html#using-the-provider
-
-import React, {useState, useEffect} from 'react'
-import PasswordVault_abi from './contracts/PasswordVault_abi.json'
 // Import everything
+import React, {useState, useEffect} from 'react';
+import PasswordVault_abi from './contracts/PasswordVault_abi.json';
 import { ethers } from "ethers";
+import CryptoJS from 'crypto-js';
+import { encrypt } from 'eth-sig-util';
+import { bufferToHex } from 'ethereumjs-util';
 
 const PasswordVault = ({ setLoading }) => {
 	// deploy simple storage contract and paste deployed contract address here.
@@ -19,6 +21,9 @@ const PasswordVault = ({ setLoading }) => {
 	const [signer, setSigner] = useState(null);
 	const [contract, setContract] = useState(null);
 
+    const [publicKey, setPublicKey] = useState(null);
+
+    const [decryptedPasswords, setDecryptedPasswords] = useState({});
 
 	useEffect(() => {
 		connectWalletHandler();
@@ -77,6 +82,8 @@ const PasswordVault = ({ setLoading }) => {
 
 			let tempContract = new ethers.Contract(contractAddress, PasswordVault_abi, tempSigner);
 			setContract(tempContract);
+
+            
 		} catch (error) {
 			setErrorMessage(error.message);
 		}	
@@ -94,6 +101,73 @@ const PasswordVault = ({ setLoading }) => {
         }
     };
 
+    const encryptPassword = async (password) => {
+        // Generate a symmetric key
+        const symKey = CryptoJS.lib.WordArray.random(16).toString();
+        
+        // Encrypt the password with the symmetric key
+        const encryptedPassword = CryptoJS.AES.encrypt(password, symKey).toString();
+    
+        // Combine the symmetric key and the encrypted password
+        const combined = `${symKey}:${encryptedPassword}`;
+
+        let tempPublicKey = '';
+        if(publicKey == null){
+            tempPublicKey = await window.ethereum.request({
+                method: 'eth_getEncryptionPublicKey',
+                params: [defaultAccount],
+             })
+             setPublicKey(tempPublicKey)
+        }
+
+        const encryptedData = bufferToHex(
+            Buffer.from(
+                JSON.stringify(
+                    encrypt(tempPublicKey, 
+                        { data: combined }, 
+                        'x25519-xsalsa20-poly1305'),
+                ),
+                'utf8',
+            ),
+        );
+
+
+        return encryptedData;
+    }
+
+    const decryptPassword = async (encryptedPassword) => {
+        try {
+            // Desencripta el mensaje cifrado utilizando eth_decrypt
+            const decryptedData = await window.ethereum.request({
+                method: 'eth_decrypt',
+                params: [encryptedPassword, defaultAccount]
+            });
+
+            // Separa la clave simétrica y la contraseña encriptada
+            const [symKey, encryptedPass] = decryptedData.split(':');
+
+            // Desencripta la contraseña utilizando la clave simétrica
+            const bytes = CryptoJS.AES.decrypt(encryptedPass, symKey);
+            const decryptedPassword = bytes.toString(CryptoJS.enc.Utf8);
+
+            return decryptedPassword;
+        } catch (error) {
+            throw new Error('Failed to decrypt password');
+        }
+    }
+
+    const handleViewPassword = async (login) => {
+        try {
+            const decryptedPassword = await decryptPassword(login.password);
+            setDecryptedPasswords(prevState => ({
+                ...prevState,
+                [login.password]: decryptedPassword
+            }));
+        } catch (error) {
+            setErrorMessage(error.message);
+        }
+    }
+
     const addLoginHandler = async (event) => {
         event.preventDefault();
         setLoading(true);
@@ -102,7 +176,10 @@ const PasswordVault = ({ setLoading }) => {
                 const username = event.target.username.value;
                 const password = event.target.password.value;
                 const url = event.target.url.value;
-                const tx = await contract.addLogin(username, password, url);
+
+                const encryptedPackage = await encryptPassword(password);
+
+                const tx = await contract.addLogin(username, encryptedPackage, url);
                 await tx.wait();
                 fetchVaults();
             } catch (error) {
@@ -134,13 +211,16 @@ const PasswordVault = ({ setLoading }) => {
             {vaults.length > 0 ? (
             vaults.map((vault, vaultIndex) => (
                 <div key={vaultIndex}>
-                <h4>Vault {vaultIndex + 1}</h4>
                 {vault.logins.length > 0 ? (
-                    vault.logins.map((login, loginIndex) => (
-                    <div key={loginIndex}>
-                        <p>Username: {login.username}</p>
-                        <p>Password: {login.password}</p>
-                        <p>URL: {login.url}</p>
+                    vault.logins.map((login) => (
+                    <div>
+                        <p>
+                            Username: {login.username}, 
+                            Password: {decryptedPasswords[login.password] || (
+                                <button onClick={() => handleViewPassword(login)}>View Password</button>
+                            )}, 
+                            URL: {login.url}
+                        </p>
                     </div>
                     ))
                 ) : (
