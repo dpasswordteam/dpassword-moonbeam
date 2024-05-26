@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 function App() {
   
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [publicKey, setPublicKey] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -25,7 +27,8 @@ function App() {
       ) : (
         <>
           {/*<SimpleStorage setLoading={setLoading} />*/}
-          <PasswordVault setLoading={setLoading} />
+          <PasswordVault setLoading={setLoading} setErrorMessage={setErrorMessage} publicKey={publicKey} setPublicKey={setPublicKey}/>
+          {errorMessage}
         </>
       )}
     </div>

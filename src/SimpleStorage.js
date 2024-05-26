@@ -115,7 +115,6 @@ const SimpleStorage = ({ setLoading }) => {
 			<button onClick={getCurrentVal} style={{marginTop: '5em'}}> Get Current Contract Value </button>
 			</div>
 			{currentContractVal}
-			{errorMessage}
 		</div>
 	);
 }

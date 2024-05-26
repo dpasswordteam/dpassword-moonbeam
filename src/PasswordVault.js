@@ -9,7 +9,7 @@ import { bufferToHex } from 'ethereumjs-util';
 import BatchModal from './BatchModal';
 const ethers = require("ethers")
 
-const PasswordVault = ({ setLoading }) => {
+const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey }) => {
 	// deploy simple storage contract and paste deployed contract address here.
 	//let contractAddress = '0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E';
     const contractAddressMB = '0xaF91f6b78C63956d7d0100414cb65552EC259555';
@@ -17,7 +17,7 @@ const PasswordVault = ({ setLoading }) => {
     const batchContractAdddressMB = '0x0000000000000000000000000000000000000808'
     const callPermitContractAdddressMB = '0x000000000000000000000000000000000000080a'
 
-	const [errorMessage, setErrorMessage] = useState(null);
+	
 	const [defaultAccount, setDefaultAccount] = useState(null);
 	const [connButtonText, setConnButtonText] = useState('Connect Wallet');
 
@@ -28,10 +28,7 @@ const PasswordVault = ({ setLoading }) => {
 	const [contract, setContract] = useState(null);
     const [batchContract, setBatchContract] = useState(null);
 
-    const [publicKey, setPublicKey] = useState(null);
-
     const [decryptedPasswords, setDecryptedPasswords] = useState({});
-
 
     const [modalIsOpen, setModalIsOpen] = useState(false);
 
@@ -45,7 +42,7 @@ const PasswordVault = ({ setLoading }) => {
 
 	useEffect(() => {
 		connectWalletHandler();
-	  }, []);
+	});
 
 
     useEffect(() => {
@@ -75,15 +72,14 @@ const PasswordVault = ({ setLoading }) => {
 
 	// update account, will cause component re-render
 	const accountChangedHandler = (newAccount) => {
-		setDefaultAccount(newAccount);
-		updateEthers(newAccount);
+        setDefaultAccount(newAccount);
+        updateEthers(newAccount);
 	}
 
 	const chainChangedHandler = () => {
 		// reload the page to avoid any errors with chain change mid use of application
 		window.location.reload();
 	}
-
 
 	// listen for account changes
 	window.ethereum.on('accountsChanged', accountChangedHandler);
@@ -137,37 +133,40 @@ const PasswordVault = ({ setLoading }) => {
     };
 
     const encryptPassword = async (password) => {
-        // Generate a symmetric key
-        const symKey = CryptoJS.lib.WordArray.random(16).toString();
+        try{
+            // Generate a symmetric key
+            const symKey = CryptoJS.lib.WordArray.random(16).toString();
+            
+            // Encrypt the password with the symmetric key
+            const encryptedPassword = CryptoJS.AES.encrypt(password, symKey).toString();
         
-        // Encrypt the password with the symmetric key
-        const encryptedPassword = CryptoJS.AES.encrypt(password, symKey).toString();
-    
-        // Combine the symmetric key and the encrypted password
-        const combined = `${symKey}:${encryptedPassword}`;
+            // Combine the symmetric key and the encrypted password
+            const combined = `${symKey}:${encryptedPassword}`;
 
-        let tempPublicKey = '';
-        if(publicKey == null){
-            tempPublicKey = await window.ethereum.request({
-                method: 'eth_getEncryptionPublicKey',
-                params: [defaultAccount],
-             })
-             setPublicKey(tempPublicKey)
-        }
+            const tempPublicKey = publicKey || await window.ethereum.request({
+                    method: 'eth_getEncryptionPublicKey',
+                    params: [defaultAccount],
+                });
 
-        const encryptedData = bufferToHex(
-            Buffer.from(
-                JSON.stringify(
-                    encrypt(tempPublicKey, 
-                        { data: combined }, 
-                        'x25519-xsalsa20-poly1305'),
+            setPublicKey(tempPublicKey)
+
+            const encryptedData = bufferToHex(
+                Buffer.from(
+                    JSON.stringify(
+                        encrypt(tempPublicKey, 
+                            { data: combined }, 
+                            'x25519-xsalsa20-poly1305'),
+                    ),
+                    'utf8',
                 ),
-                'utf8',
-            ),
-        );
+            );
 
 
-        return encryptedData;
+            return encryptedData;
+        } catch (error) {
+            console.error('Failed to get encryption public key:', error);
+            return null;
+        }
     }
 
     const decryptPassword = async (encryptedPassword) => {
@@ -204,7 +203,6 @@ const PasswordVault = ({ setLoading }) => {
     }
 
     const addLoginHandler = async (event) => {
-        event.preventDefault();
         setLoading(true);
         if (contract) {
             try {
@@ -218,14 +216,20 @@ const PasswordVault = ({ setLoading }) => {
                 await tx.wait();
                 fetchVaults();
             } catch (error) {
-                setErrorMessage(error.message);
+                if (error.message.indexOf("User denied") !== -1) {
+                    setErrorMessage('User denied transaction signature');
+                } else {
+                    setErrorMessage(error.message);
+                }
             } finally {
                 setLoading(false);
+                event.preventDefault();
             }
         } else {
             setErrorMessage('Contract is not loaded');
             setLoading(false);
         }
+        event.preventDefault();
     };
 	
     return (
@@ -278,7 +282,6 @@ const PasswordVault = ({ setLoading }) => {
                 <p>No logins found</p>
             )}
           </div>
-          {errorMessage}
         </div>
     );
 }

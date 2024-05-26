@@ -26,31 +26,41 @@ const BatchModal = ({
         setLoading(true);
         if (batchContract) {
             try {
-                const username = event.target.username.value;
-                const password = event.target.password.value;
-                const url = event.target.url.value;
-                const encryptedPackage = await encryptPassword(password);
+                const batchData = []; // Array to store complete tuples
+                const to = []; // Array for contract addresses
+                const value = []; // Array for values
+                const gasLimit = []; // Array for gas limits
 
+                // Iterate through the inputs of username, password, and url
+                for (let i = 1; i <= 3; i++) { // Assuming you have 3 sets of fields
+                    const username = event.target[`username${i}`].value;
+                    const password = event.target[`password${i}`].value;
+                    const url = event.target[`url${i}`].value;
+                    
+                    // Check if all fields are filled
+                    if (username && password && url) {
+                        const encryptedPassword = await encryptPassword(password);
 
-                const to = [
-                    contractAddressMB
-                  ];
+                        batchData.push({ username, encryptedPassword, url }); // Add complete tuple to array
+                        to.push(contractAddressMB); // Add contract address
+                        value.push(0); // Add value (assuming 0 for now)
+                        gasLimit.push(0); // Add gas limit (adjust as needed)
+                    }
+                }
 
-                const value = [0]; // Asumimos que las llamadas no envían ETH
+                    // Check if complete tuples were found
+                if (batchData.length > 0) {
+                    const batchCallData = batchData.map(({ username, encryptedPassword, url }) =>
+                        batchInterface.encodeFunctionData('addLogin', [username, encryptedPassword, url])
+                    );
 
-                // Find call data for the setMessage function
-                const callData = batchInterface.encodeFunctionData(
-                    'addLogin', 
-                    [username, password, url]
-                );
+                    const tx = await batchContract.batchAll(to, value, batchCallData, gasLimit);
+                    await tx.wait();
+                    fetchVaults();
+                } else {
+                    setErrorMessage('No data provided');
+                }
 
-                const batchCallData = [callData];
-
-                const gasLimit = [0]; // Ajusta según sea necesario
-
-                const tx = await batchContract.batchAll(to, value, batchCallData, gasLimit);
-                await tx.wait();
-                fetchVaults();
             } catch (error) {
                 setErrorMessage(error.message);
             } finally {
@@ -70,9 +80,9 @@ const BatchModal = ({
             
 
           <form onSubmit={addBatchHandler}>
-            <p><input id="username" type="text" placeholder="Username" />
-            <input id="password" type="text" placeholder="Password" />
-            <input id="url" type="text" placeholder="URL" /></p>
+            <p><input id="username1" type="text" placeholder="Username" />
+            <input id="password1" type="text" placeholder="Password" />
+            <input id="url1" type="text" placeholder="URL" /></p>
 
             <p><input id="username2" type="text" placeholder="Username" />
             <input id="password2" type="text" placeholder="Password" />
@@ -85,14 +95,9 @@ const BatchModal = ({
             <button type="submit">Add Batch</button>
           </form>
 
-
-
             <button type="button" onClick={closeModal}>
               Close
             </button>
-
-
-
           </section>
         </div>
       );
