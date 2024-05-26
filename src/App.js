@@ -5,6 +5,7 @@ import PasswordVault from './PasswordVault';
 import React, { useState, useEffect } from 'react';
 
 function App() {
+  
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

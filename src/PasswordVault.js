@@ -2,14 +2,20 @@
 // Import everything
 import React, {useState, useEffect} from 'react';
 import PasswordVault_abi from './contracts/PasswordVault_abi.json';
-import { ethers } from "ethers";
+import Batch_abi from './contracts/PasswordVault_abi.json';
 import CryptoJS from 'crypto-js';
 import { encrypt } from 'eth-sig-util';
 import { bufferToHex } from 'ethereumjs-util';
+import BatchModal from './BatchModal';
+const ethers = require("ethers")
 
 const PasswordVault = ({ setLoading }) => {
 	// deploy simple storage contract and paste deployed contract address here.
-	let contractAddress = '0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E';
+	//let contractAddress = '0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E';
+    let contractAddressMB = '0xaF91f6b78C63956d7d0100414cb65552EC259555';
+
+    let batchContractAdddressMB = '0x0000000000000000000000000000000000000808'
+    let callPermitContractAdddressMB = '0x000000000000000000000000000000000000080a'
 
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [defaultAccount, setDefaultAccount] = useState(null);
@@ -20,10 +26,22 @@ const PasswordVault = ({ setLoading }) => {
 	const [provider, setProvider] = useState(null);
 	const [signer, setSigner] = useState(null);
 	const [contract, setContract] = useState(null);
+    const [batchContract, setBatchContract] = useState(null);
 
     const [publicKey, setPublicKey] = useState(null);
 
     const [decryptedPasswords, setDecryptedPasswords] = useState({});
+
+
+    const [modalIsOpen, setModalIsOpen] = useState(false);
+
+    const openModal = () => {
+        setModalIsOpen(true);
+    }
+
+    const closeModal = () => {
+        setModalIsOpen(false);
+    }
 
 	useEffect(() => {
 		connectWalletHandler();
@@ -58,7 +76,7 @@ const PasswordVault = ({ setLoading }) => {
 	// update account, will cause component re-render
 	const accountChangedHandler = (newAccount) => {
 		setDefaultAccount(newAccount);
-		updateEthers();
+		updateEthers(newAccount);
 	}
 
 	const chainChangedHandler = () => {
@@ -72,18 +90,35 @@ const PasswordVault = ({ setLoading }) => {
 
 	window.ethereum.on('chainChanged', chainChangedHandler);
 
-	const updateEthers = async () => {
-		try {
-			let tempProvider = new ethers.BrowserProvider(window.ethereum)
-			setProvider(tempProvider);
+	const updateEthers = async (newAccount) => {
 
-			let tempSigner = await tempProvider.getSigner();
+        const providerRPC = {
+            moonbeam: {
+                name: 'moonbase-alpha',
+                rpc: 'https://rpc.api.moonbase.moonbeam.network', // Insert your RPC URL here
+                chainId: 1287, // 0x504 in hex,
+            }
+        };
+
+		try {
+            const tempProvider = new ethers.JsonRpcProvider(providerRPC.moonbeam.rpc, {
+                chainId: providerRPC.moonbeam.chainId,
+                name: providerRPC.moonbeam.name,
+            });
+            setProvider(tempProvider);
+
+			let tempSignerProvider = new ethers.BrowserProvider(window.ethereum);
+			
+
+			let tempSigner = await tempSignerProvider.getSigner();
 			setSigner(tempSigner);
 
-			let tempContract = new ethers.Contract(contractAddress, PasswordVault_abi, tempSigner);
+			//let tempContract = new ethers.Contract(contractAddress, PasswordVault_abi, tempSigner);
+            let tempContract = new ethers.Contract(contractAddressMB, PasswordVault_abi, tempSigner);
 			setContract(tempContract);
 
-            
+            let tempBatchContract = new ethers.Contract(batchContractAdddressMB, Batch_abi, tempSigner);
+			setBatchContract(tempBatchContract);
 		} catch (error) {
 			setErrorMessage(error.message);
 		}	
@@ -206,6 +241,17 @@ const PasswordVault = ({ setLoading }) => {
             <input id="url" type="text" placeholder="URL" />
             <button type="submit">Add Login</button>
           </form>
+            
+            <button type="button" onClick={openModal}>Add Batch Logins</button>
+            <BatchModal 
+                isOpen={modalIsOpen} 
+                closeModal={closeModal} 
+                setLoading={setLoading} 
+                setErrorMessage={setErrorMessage} 
+                encryptPassword={encryptPassword}
+                contract={contract}
+                fetchVaults={fetchVaults}
+                />
           <div>
             <h3>Vault:</h3>
             {vaults.length > 0 ? (
