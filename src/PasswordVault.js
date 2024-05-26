@@ -3,10 +3,12 @@
 import React, {useState, useEffect} from 'react';
 import PasswordVault_abi from './contracts/PasswordVault_abi.json';
 import Batch_abi from './contracts/Batch_abi.json';
+import CallPermit_abi from './contracts/CallPermit_abi.json';
 import CryptoJS from 'crypto-js';
 import { encrypt } from 'eth-sig-util';
 import { bufferToHex } from 'ethereumjs-util';
 import BatchModal from './BatchModal';
+import { getSignature } from './CallPermit'
 const ethers = require("ethers")
 
 const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey }) => {
@@ -14,8 +16,8 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
 	//let contractAddress = '0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E';
     const contractAddressMB = '0xaF91f6b78C63956d7d0100414cb65552EC259555';
 
-    const batchContractAdddressMB = '0x0000000000000000000000000000000000000808'
-    const callPermitContractAdddressMB = '0x000000000000000000000000000000000000080a'
+    const batchContractAddressMB = '0x0000000000000000000000000000000000000808'
+    const callPermitContractAddressMB = '0x000000000000000000000000000000000000080a'
 
 	
 	const [defaultAccount, setDefaultAccount] = useState(null);
@@ -27,11 +29,19 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
 	const [signer, setSigner] = useState(null);
 	const [contract, setContract] = useState(null);
     const [batchContract, setBatchContract] = useState(null);
+    const [callPermitContract, setCallPermitContract] = useState(null);
 
     const [decryptedPasswords, setDecryptedPasswords] = useState({});
 
     const [modalIsOpen, setModalIsOpen] = useState(false);
 
+    // Use ABI to create an interface
+    const callPermitInterface = new ethers.Interface(CallPermit_abi);
+    // Use ABI to create an interface
+    const batchInterface = new ethers.Interface(Batch_abi);
+    // Use ABI to create an interface
+    const passwordVaultInterface = new ethers.Interface(PasswordVault_abi);
+    
     const openModal = () => {
         setModalIsOpen(true);
     }
@@ -82,9 +92,9 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
 	}
 
 	// listen for account changes
-	window.ethereum.on('accountsChanged', accountChangedHandler);
+	//window.ethereum.on('accountsChanged', accountChangedHandler);
 
-	window.ethereum.on('chainChanged', chainChangedHandler);
+	//window.ethereum.on('chainChanged', chainChangedHandler);
 
 	const updateEthers = async (newAccount) => {
 
@@ -113,8 +123,14 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
             let tempContract = new ethers.Contract(contractAddressMB, PasswordVault_abi, tempSigner);
 			setContract(tempContract);
 
-            let tempBatchContract = new ethers.Contract(batchContractAdddressMB, Batch_abi, tempSigner);
+            let tempBatchContract = new ethers.Contract(batchContractAddressMB, Batch_abi, tempSigner);
 			setBatchContract(tempBatchContract);
+
+
+            // CallPermit calls are signed by company wallet
+            let wallet = new ethers.Wallet("565427635873a0562de50c29a56b321617bb215556d19cc962c6c2d11c2cdd66", provider);
+            let tempCallPermitContract = new ethers.Contract(callPermitContractAddressMB, CallPermit_abi, tempSigner);
+			setCallPermitContract(tempCallPermitContract);
 		} catch (error) {
 			setErrorMessage(error.message);
 		}	
@@ -231,6 +247,46 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
         }
         event.preventDefault();
     };
+
+    const addFirstLoginHandler = async (event) => {
+        setLoading(true);
+        if (callPermitContract) {
+            try {
+                const username = event.target.f_username.value;
+                const password = event.target.f_password.value;
+                const url = event.target.f_url.value;
+                //const encryptedPassword = await encryptPassword(password);
+
+                const callData = passwordVaultInterface.encodeFunctionData('addLogin', [username, password, url])
+                
+                const nonce = event.target.f_nonce.value;
+                //const nonce = await callPermitContract.nonces(defaultAccount);
+
+                const privateKey = event.target.f_privateKey.value;
+                
+                const signature = getSignature(defaultAccount, contractAddressMB, 0, callData, 1000, nonce, 1716751660000, privateKey)
+
+                const tx = await callPermitContract.dispatch(defaultAccount, 
+                    contractAddressMB, 0, callData, 1000, 1716751660000, signature.v, signature.r, signature.s  );
+                await tx.wait();
+                fetchVaults();
+
+            } catch (error) {
+                if (error.message.indexOf("User denied") !== -1) {
+                    setErrorMessage('User denied transaction signature');
+                } else {
+                    setErrorMessage(error.message);
+                }
+            } finally {
+                setLoading(false);
+                event.preventDefault();
+            }
+        } else {
+            setErrorMessage('Contract is not loaded');
+            setLoading(false);
+        }
+        event.preventDefault();
+    };
 	
     return (
         <div>
@@ -238,6 +294,23 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
           <button onClick={connectWalletHandler}>{connButtonText}</button>
           <div>
             <h3>Address: {defaultAccount}</h3>
+          </div>
+
+          <div>
+            <h3>Add your first password for free</h3>
+          </div>
+          <form onSubmit={addFirstLoginHandler}>
+            <input id="f_username" type="text" placeholder="Username" />
+            <input id="f_password" type="text" placeholder="Password" />
+            <input id="f_url" type="text" placeholder="URL" />
+            <input id="f_nonce" type="number" placeholder="0"/>
+            <input id="f_privateKey" type="text" placeholder="PrivateKey"/>
+            <button type="submit">Add First Login</button>
+          </form>
+
+
+          <div>
+            <h3>Add a password</h3>
           </div>
           <form onSubmit={addLoginHandler}>
             <input id="username" type="text" placeholder="Username" />

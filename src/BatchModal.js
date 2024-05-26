@@ -1,6 +1,6 @@
 import React from 'react';
 import './BatchModal.css'; // Importa el archivo CSS que contiene los estilos de la modal
-import Batch_abi from './contracts/PasswordVault_abi.json';
+import PasswordVault_abi from './contracts/PasswordVault_abi.json';
 
 const ethers = require("ethers");
 
@@ -19,7 +19,7 @@ const BatchModal = ({
     const showHideClassName = isOpen ? "modal display-block" : "modal display-none";
 
     // Use ABI to create an interface
-    const batchInterface = new ethers.Interface(Batch_abi);
+    const passwordVaultInterface = new ethers.Interface(PasswordVault_abi);
 
     const addBatchHandler = async (event) => {
         event.preventDefault();
@@ -51,7 +51,7 @@ const BatchModal = ({
                     // Check if complete tuples were found
                 if (batchData.length > 0) {
                     const batchCallData = batchData.map(({ username, encryptedPassword, url }) =>
-                        batchInterface.encodeFunctionData('addLogin', [username, encryptedPassword, url])
+                        passwordVaultInterface.encodeFunctionData('addLogin', [username, encryptedPassword, url])
                     );
 
                     const tx = await batchContract.batchAll(to, value, batchCallData, gasLimit);

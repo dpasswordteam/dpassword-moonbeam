@@ -7,7 +7,8 @@ module.exports = {
           http: require.resolve('stream-http'),
           https: require.resolve('https-browserify'),
           crypto: require.resolve('crypto-browserify'),
-          buffer: require.resolve('buffer')
+          buffer: require.resolve('buffer'),
+          zlib: require.resolve('browserify-zlib')
         }),
         addWebpackPlugin(
           new webpack.ProvidePlugin({

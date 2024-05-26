@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@metamask/eth-sig-util": "^7.0.2",
+    "@metamask/utils": "^8.4.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -49,6 +51,7 @@
     ]
   },
   "devDependencies": {
+    "browserify-zlib": "^0.2.0",
     "react-app-rewired": "^2.2.1"
   }
 }
