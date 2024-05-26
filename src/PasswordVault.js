@@ -2,7 +2,7 @@
 // Import everything
 import React, {useState, useEffect} from 'react';
 import PasswordVault_abi from './contracts/PasswordVault_abi.json';
-import Batch_abi from './contracts/PasswordVault_abi.json';
+import Batch_abi from './contracts/Batch_abi.json';
 import CryptoJS from 'crypto-js';
 import { encrypt } from 'eth-sig-util';
 import { bufferToHex } from 'ethereumjs-util';
@@ -12,10 +12,10 @@ const ethers = require("ethers")
 const PasswordVault = ({ setLoading }) => {
 	// deploy simple storage contract and paste deployed contract address here.
 	//let contractAddress = '0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E';
-    let contractAddressMB = '0xaF91f6b78C63956d7d0100414cb65552EC259555';
+    const contractAddressMB = '0xaF91f6b78C63956d7d0100414cb65552EC259555';
 
-    let batchContractAdddressMB = '0x0000000000000000000000000000000000000808'
-    let callPermitContractAdddressMB = '0x000000000000000000000000000000000000080a'
+    const batchContractAdddressMB = '0x0000000000000000000000000000000000000808'
+    const callPermitContractAdddressMB = '0x000000000000000000000000000000000000080a'
 
 	const [errorMessage, setErrorMessage] = useState(null);
 	const [defaultAccount, setDefaultAccount] = useState(null);
@@ -249,7 +249,7 @@ const PasswordVault = ({ setLoading }) => {
                 setLoading={setLoading} 
                 setErrorMessage={setErrorMessage} 
                 encryptPassword={encryptPassword}
-                contract={contract}
+                batchContract={batchContract}
                 fetchVaults={fetchVaults}
                 />
           <div>
