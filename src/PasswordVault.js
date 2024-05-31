@@ -51,7 +51,8 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
     }
 
 	useEffect(() => {
-		connectWalletHandler();
+        if(connButtonText == 'Connect Wallet')
+		    connectWalletHandler();
 	});
 
 
@@ -92,9 +93,9 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
 	}
 
 	// listen for account changes
-	//window.ethereum.on('accountsChanged', accountChangedHandler);
+	window.ethereum.on('accountsChanged', accountChangedHandler);
 
-	//window.ethereum.on('chainChanged', chainChangedHandler);
+	window.ethereum.on('chainChanged', chainChangedHandler);
 
 	const updateEthers = async (newAccount) => {
 
@@ -128,8 +129,8 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
 
 
             // CallPermit calls are signed by company wallet
-            let wallet = new ethers.Wallet("565427635873a0562de50c29a56b321617bb215556d19cc962c6c2d11c2cdd66", provider);
-            let tempCallPermitContract = new ethers.Contract(callPermitContractAddressMB, CallPermit_abi, tempSigner);
+            let wallet = new ethers.Wallet("48fec3097be344ee01a2301ce04c99d6cc0f9bf651727f7b9a4f5c03ee74bafa", tempProvider);
+            let tempCallPermitContract = new ethers.Contract(callPermitContractAddressMB, CallPermit_abi, wallet);
 			setCallPermitContract(tempCallPermitContract);
 		} catch (error) {
 			setErrorMessage(error.message);
@@ -255,19 +256,23 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
                 const username = event.target.f_username.value;
                 const password = event.target.f_password.value;
                 const url = event.target.f_url.value;
-                //const encryptedPassword = await encryptPassword(password);
+                const encryptedPassword = await encryptPassword(password);
 
-                const callData = passwordVaultInterface.encodeFunctionData('addLogin', [username, password, url])
+                const callData = passwordVaultInterface.encodeFunctionData('addLogin', [username, encryptedPassword, url])
                 
-                const nonce = event.target.f_nonce.value;
-                //const nonce = await callPermitContract.nonces(defaultAccount);
+                let start = new Date();
+                const deadline = start.setDate(start.getDate() + 1);
+
+                const gasLimit = 1000000;
+
+                const nonce = await callPermitContract.nonces(defaultAccount);
 
                 const privateKey = event.target.f_privateKey.value;
                 
-                const signature = getSignature(defaultAccount, contractAddressMB, 0, callData, 1000, nonce, 1716751660000, privateKey)
+                const signature = getSignature(defaultAccount, contractAddressMB, 0, callData, gasLimit, nonce, deadline, privateKey)
 
                 const tx = await callPermitContract.dispatch(defaultAccount, 
-                    contractAddressMB, 0, callData, 1000, 1716751660000, signature.v, signature.r, signature.s  );
+                    contractAddressMB, 0, callData, gasLimit, deadline, signature.v, signature.r, signature.s);
                 await tx.wait();
                 fetchVaults();
 
@@ -303,7 +308,6 @@ const PasswordVault = ({ setLoading, setErrorMessage, publicKey, setPublicKey })
             <input id="f_username" type="text" placeholder="Username" />
             <input id="f_password" type="text" placeholder="Password" />
             <input id="f_url" type="text" placeholder="URL" />
-            <input id="f_nonce" type="number" placeholder="0"/>
             <input id="f_privateKey" type="text" placeholder="PrivateKey"/>
             <button type="submit">Add First Login</button>
           </form>
